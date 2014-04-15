@@ -17,7 +17,7 @@
 * @param {number} width - Width of the tile.
 * @param {number} height - Height of the tile.
 */
-Phaser.Tile = function (layer, index, x, y, width, height) {
+Phaser.Tile = function (layer, index, x, y, width, height, behaviour) {
 
     /**
     * @property {object} layer - The layer in the Tilemap data that this tile belongs to.
@@ -139,6 +139,14 @@ Phaser.Tile = function (layer, index, x, y, width, height) {
     * @default
     */
     this.collisionCallbackContext = this;
+
+    /**
+    * @method {}
+    * XXX
+    */
+    if(typeof(behaviour) === 'function') {
+        this.behaviour = behaviour;
+    }
 
 };
 
@@ -308,6 +316,76 @@ Phaser.Tile.prototype = {
         this.collisionCallback = tile.collisionCallback;
         this.collisionCallbackContext = tile.collisionCallbackContext;
 
+    },
+
+    /**
+    * Default behaviour for when body collides with tile
+    */
+
+    behaviour : function(body) {
+        var ox = 0;
+        var oy = 0;
+        var minX = 0;
+        var minY = 1;
+
+        if (body.deltaAbsX() > body.deltaAbsY())
+        {
+            //  Moving faster horizontally, check X axis first
+            minX = -1;
+        }
+        else if (body.deltaAbsX() < body.deltaAbsY())
+        {
+            //  Moving faster vertically, check Y axis first
+            minY = -1;
+        }
+
+        if (body.deltaX() !== 0 && body.deltaY() !== 0 && (this.faceLeft || this.faceRight) && (this.faceTop || this.faceBottom))
+        {
+            //  We only need do this if both axis have checking faces AND we're moving in both directions
+            minX = Math.min(Math.abs(body.position.x - this.right), Math.abs(body.right - this.left));
+            minY = Math.min(Math.abs(body.position.y - this.bottom), Math.abs(body.bottom - this.top));
+
+            // console.log('checking faces', minX, minY);
+        }
+
+        if (minX < minY)
+        {
+            if (this.faceLeft || this.faceRight)
+            {
+                ox = this.tileCheckX(body, tile);
+
+                //  That's horizontal done, check if we still intersects? If not then we can return now
+                if (ox !== 0 && !this.intersects(body.position.x, body.position.y, body.right, body.bottom))
+                {
+                    return true;
+                }
+            }
+
+            if (this.faceTop || this.faceBottom)
+            {
+                oy = this.tileCheckY(body, tile);
+            }
+        }
+        else
+        {
+            if (this.faceTop || this.faceBottom)
+            {
+                oy = this.tileCheckY(body, tile);
+
+                //  That's vertical done, check if we still intersects? If not then we can return now
+                if (oy !== 0 && !this.intersects(body.position.x, body.position.y, body.right, body.bottom))
+                {
+                    return true;
+                }
+            }
+
+            if (this.faceLeft || this.faceRight)
+            {
+                ox = this.tileCheckX(body, tile);
+            }
+        }
+
+        return (ox !== 0 || oy !== 0);
     }
 
 };
